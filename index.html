@@ -9,7 +9,7 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
         body {
-            font-family: 'Noto+Sans+SC', sans-serif;
+            font-family: 'Noto Sans SC', sans-serif;
             background-color: #f8fafc;
         }
         .manga-card:hover .edit-overlay {
@@ -21,6 +21,9 @@
         .custom-scrollbar::-webkit-scrollbar-thumb {
             background: #e2e8f0;
             border-radius: 10px;
+        }
+        .aspect-manga {
+            aspect-ratio: 3 / 4;
         }
     </style>
 </head>
@@ -89,16 +92,24 @@
 
     <!-- Modal -->
     <div id="modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
-        <div class="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden">
+        <div class="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
             <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
                 <h3 id="modalTitle" class="text-xl font-bold">添加新漫画</h3>
                 <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600"><i class="fas fa-times text-xl"></i></button>
             </div>
-            <form id="mangaForm" class="p-6 space-y-4">
+            <form id="mangaForm" class="p-6 space-y-4 overflow-y-auto custom-scrollbar">
                 <input type="hidden" id="editIndex" value="">
                 <div>
                     <label class="block text-sm font-medium text-slate-700 mb-1">漫画名称*</label>
                     <input type="text" id="title" required class="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">封面图片链接 (URL)</label>
+                    <input type="url" id="coverUrl" placeholder="https://example.com/cover.jpg" class="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">跳转详情链接 (URL)</label>
+                    <input type="url" id="customLink" placeholder="https://kzo.moe/..." class="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
@@ -140,6 +151,9 @@
         const mangaForm = document.getElementById('mangaForm');
         const ratingInput = document.getElementById('rating');
         const ratingVal = document.getElementById('ratingVal');
+
+        // Placeholder cover
+        const PLACEHOLDER_IMAGE = "https://via.placeholder.com/300x400?text=No+Cover";
 
         // Update rating display
         ratingInput.addEventListener('input', (e) => {
@@ -193,30 +207,42 @@
                     wishlist: '想看'
                 };
 
+                const realIndex = mangas.indexOf(m);
+                const targetUrl = m.customLink || `https://kzo.moe/search?q=${encodeURIComponent(m.title)}`;
+                const cover = m.coverUrl || PLACEHOLDER_IMAGE;
+
                 return `
-                    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden hover:shadow-md transition-shadow group relative">
-                        <div class="p-5">
-                            <div class="flex justify-between items-start mb-3">
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden hover:shadow-md transition-shadow group relative flex flex-col">
+                        <!-- Cover Image -->
+                        <div class="relative aspect-manga bg-slate-200 overflow-hidden">
+                            <img src="${cover}" alt="${m.title}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onerror="this.src='${PLACEHOLDER_IMAGE}'">
+                            <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
+                                <span class="text-white text-xs font-medium bg-black/40 backdrop-blur-sm px-2 py-1 rounded">查看详情</span>
+                            </div>
+                        </div>
+
+                        <div class="p-5 flex-1 flex flex-col">
+                            <div class="flex justify-between items-start mb-2">
                                 <span class="px-2.5 py-1 rounded-md text-xs font-bold ${statusColors[m.status]}">
                                     ${statusText[m.status]}
                                 </span>
                                 <div class="flex gap-2">
-                                    <button onclick="editManga(${mangas.indexOf(m)})" class="text-slate-400 hover:text-indigo-600 transition-colors"><i class="fas fa-edit text-sm"></i></button>
-                                    <button onclick="deleteManga(${mangas.indexOf(m)})" class="text-slate-400 hover:text-rose-600 transition-colors"><i class="fas fa-trash text-sm"></i></button>
+                                    <button onclick="editManga(${realIndex})" class="text-slate-400 hover:text-indigo-600 transition-colors"><i class="fas fa-edit text-sm"></i></button>
+                                    <button onclick="deleteManga(${realIndex})" class="text-slate-400 hover:text-rose-600 transition-colors"><i class="fas fa-trash text-sm"></i></button>
                                 </div>
                             </div>
-                            <h3 class="text-lg font-bold mb-1 line-clamp-1">${m.title}</h3>
-                            <div class="flex items-center gap-2 text-sm text-slate-500 mb-4">
-                                <i class="fas fa-bookmark text-indigo-400"></i> 进度: <span class="font-semibold text-slate-700">${m.progress || 0}</span> 话
+                            <h3 class="text-lg font-bold mb-1 line-clamp-1" title="${m.title}">${m.title}</h3>
+                            <div class="flex items-center gap-2 text-sm text-slate-500 mb-3">
+                                <i class="fas fa-bookmark text-indigo-400"></i> <span class="font-semibold text-slate-700">${m.progress || 0}</span> 话
                                 <span class="mx-1">•</span>
                                 <i class="fas fa-star text-amber-400"></i> <span class="font-semibold text-slate-700">${m.rating}</span>
                             </div>
                             <div class="text-sm text-slate-500 italic mb-4 line-clamp-2 min-h-[40px]">
                                 "${m.comment || '暂无评价...'}"
                             </div>
-                            <a href="https://kzo.moe/search?q=${encodeURIComponent(m.title)}" target="_blank" 
-                               class="flex items-center justify-center gap-2 w-full py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors text-sm font-medium">
-                                <i class="fas fa-external-link-alt"></i> 前往 KZO.MOE 
+                            <a href="${targetUrl}" target="_blank" 
+                               class="mt-auto flex items-center justify-center gap-2 w-full py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors text-sm font-medium">
+                                <i class="fas fa-external-link-alt"></i> 前往详情页 
                             </a>
                         </div>
                     </div>
@@ -245,6 +271,8 @@
             const editIndex = document.getElementById('editIndex').value;
             const newManga = {
                 title: document.getElementById('title').value,
+                coverUrl: document.getElementById('coverUrl').value,
+                customLink: document.getElementById('customLink').value,
                 progress: document.getElementById('progress').value,
                 status: document.getElementById('status').value,
                 rating: document.getElementById('rating').value,
@@ -265,6 +293,8 @@
             const m = mangas[index];
             document.getElementById('editIndex').value = index;
             document.getElementById('title').value = m.title;
+            document.getElementById('coverUrl').value = m.coverUrl || "";
+            document.getElementById('customLink').value = m.customLink || "";
             document.getElementById('progress').value = m.progress;
             document.getElementById('status').value = m.status;
             document.getElementById('rating').value = m.rating;
